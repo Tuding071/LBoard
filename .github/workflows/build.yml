@@ -28,8 +28,15 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Build Release APK
-        run: gradle assembleRelease
+      - name: Verify gradle.properties exists and has correct content
+        run: |
+          echo "Checking gradle.properties..."
+          ls -la gradle.properties || echo "gradle.properties not found in root"
+          echo "Content of gradle.properties:"
+          cat gradle.properties || echo "Cannot read gradle.properties"
+
+      - name: Build Release APK with forced AndroidX
+        run: gradle assembleRelease -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true
 
       - name: Install apksigner
         run: |
