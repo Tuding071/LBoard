@@ -28,12 +28,23 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Verify gradle.properties exists and has correct content
+      - name: Update Kotlin version to 1.9.21 for Compose compatibility
         run: |
-          echo "Checking gradle.properties..."
-          ls -la gradle.properties || echo "gradle.properties not found in root"
-          echo "Content of gradle.properties:"
-          cat gradle.properties || echo "Cannot read gradle.properties"
+          # Update build.gradle files to use Kotlin 1.9.21
+          find . -name "build.gradle*" -type f | while read file; do
+            if grep -q "kotlin(\"android\")" "$file" || grep -q "kotlin-gradle-plugin" "$file"; then
+              echo "Updating Kotlin version in $file"
+              sed -i 's/kotlinVersion = "1.9.0"/kotlinVersion = "1.9.21"/g' "$file"
+              sed -i 's/kotlin_version = "1.9.0"/kotlin_version = "1.9.21"/g' "$file"
+              sed -i 's/1.9.0/1.9.21/g' "$file" | head -5 || true
+            fi
+          done
+          
+          # Also check for any ext.kotlin_version blocks
+          if [ -f build.gradle.kts ] || [ -f build.gradle ]; then
+            echo "Current Kotlin configuration:"
+            grep -i "kotlin" build.gradle* | grep -i "version" || true
+          fi
 
       - name: Build Release APK with forced AndroidX
         run: gradle assembleRelease -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true
