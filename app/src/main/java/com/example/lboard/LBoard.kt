@@ -1,4 +1,4 @@
-// LBoard.kt — Fixed version
+// LBoard.kt — Fixed version with experimental API handling
 // A minimal custom keyboard with basic functions and long-press delete.
 // -------------------------------------------------------------
 
@@ -8,6 +8,7 @@ import android.inputmethodservice.InputMethodService
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputConnection
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -111,6 +112,7 @@ fun KeyRow(keys: List<String>, onKeyPress: (String) -> Unit) {
 // -------------------------------------------------------------
 // KeyButton() — composable for individual keys with press tint and popup feedback
 // -------------------------------------------------------------
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun KeyButton(
     label: String,
