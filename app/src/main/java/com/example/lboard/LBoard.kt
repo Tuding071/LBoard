@@ -1,4 +1,4 @@
-// LBoard.kt — Part 1/2
+// LBoard.kt — Fixed version
 // A minimal custom keyboard with basic functions and long-press delete.
 // -------------------------------------------------------------
 
@@ -10,7 +10,6 @@ import android.view.View
 import android.view.inputmethod.InputConnection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -24,6 +23,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -72,8 +72,6 @@ private val row4 = listOf("SPACE","DEL","ENTER")
 // -------------------------------------------------------------
 @Composable
 fun KeyboardScreen(onKeyPress: (String) -> Unit) {
-    val scope = rememberCoroutineScope()
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -104,25 +102,12 @@ fun KeyRow(keys: List<String>, onKeyPress: (String) -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .height(50.dp),
-                onPress = { onKeyPress(key) },
-                onLongPress = {
-                    // Long press delete — repeat until released
-                    if (key == "DEL") {
-                        val job = rememberCoroutineScope().launch {
-                            while (true) {
-                                onKeyPress("DEL")
-                                delay(80)
-                            }
-                        }
-                        // job will be cancelled when composable recomposes or long-press ends
-                        DisposableEffect(Unit) { onDispose { job.cancel() } }
-                    }
-                }
+                onKeyPress = onKeyPress
             )
         }
     }
 }
-// LBoard.kt — Part 2/2
+
 // -------------------------------------------------------------
 // KeyButton() — composable for individual keys with press tint and popup feedback
 // -------------------------------------------------------------
@@ -130,15 +115,15 @@ fun KeyRow(keys: List<String>, onKeyPress: (String) -> Unit) {
 fun KeyButton(
     label: String,
     modifier: Modifier = Modifier,
-    onPress: () -> Unit,
-    onLongPress: (() -> Unit)? = null
+    onKeyPress: (String) -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
     var showPopup by remember { mutableStateOf(false) }
+    var deleteJob by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
 
     val keyColor = if (pressed) Color(0xFF3C4043) else Color(0xFF2C2F33)
     val textColor = Color.White
-
     val shape = RoundedCornerShape(10.dp)
 
     Box(
@@ -151,12 +136,20 @@ fun KeyButton(
                 onClick = {
                     pressed = true
                     showPopup = true
-                    onPress()
+                    onKeyPress(label)
                 },
                 onLongClick = {
-                    pressed = true
-                    showPopup = true
-                    onLongPress?.invoke()
+                    if (label == "DEL") {
+                        pressed = true
+                        showPopup = true
+                        // Start continuous deletion
+                        deleteJob = scope.launch {
+                            while (true) {
+                                onKeyPress("DEL")
+                                delay(80)
+                            }
+                        }
+                    }
                 },
                 onLongClickLabel = "Hold"
             )
@@ -194,11 +187,22 @@ fun KeyButton(
             }
 
             // Auto-hide feedback popup & reset tint
-            LaunchedEffect(label) {
-                delay(120)
-                showPopup = false
-                pressed = false
+            LaunchedEffect(showPopup) {
+                if (showPopup) {
+                    delay(120)
+                    showPopup = false
+                    pressed = false
+                    deleteJob?.cancel()
+                    deleteJob = null
+                }
             }
+        }
+    }
+
+    // Cancel deletion job when composable leaves composition
+    DisposableEffect(Unit) {
+        onDispose {
+            deleteJob?.cancel()
         }
     }
 }
